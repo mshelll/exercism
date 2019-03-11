@@ -1,0 +1,104 @@
+package letter
+
+import (
+	"sync"
+	"fmt"
+	"time"
+)
+
+// FreqMap records the frequency of each rune in a given text.
+type FreqMap map[rune]int
+
+type SafeFreqMap struct {
+
+	sync.RWMutex
+	internal FreqMap
+}
+
+func NewSafeFreqMap() *SafeFreqMap {
+
+	return &SafeFreqMap{
+		internal: make(FreqMap),
+	}
+}
+
+func (freq *SafeFreqMap) Load(key rune) (result int, ok bool) {
+	//fmt.Printf("\n Inside Load")
+	freq.RLock()
+	result, ok = freq.internal[key]
+	freq.RUnlock()
+    return result, ok
+}
+
+func (freq *SafeFreqMap) Store(key rune, value int) {
+	//fmt.Printf("\n Inside Store")
+	freq.Lock()
+	freq.internal[key] = value
+	freq.Unlock()
+}
+
+var freq *SafeFreqMap
+
+var key_order string
+
+func init() {
+	//fmt.Printf("\n Inside init")
+	freq = NewSafeFreqMap()
+}
+
+// Frequency counts the frequency of each rune in a given text and returns this
+// data as a FreqMap.
+func Frequency(s string) FreqMap {
+
+	m := make(FreqMap)
+	for _, r := range s {
+		m[r]++
+	}
+	key_order = s
+	return m
+}
+
+// func (freq FreqMap) Order(key_order string) FreqMap {
+
+// 	print("\n Inside Order")
+
+// 	var m FreqMap
+// 	for _, r := range key_order {
+
+// 		m[rune(r)] = freq[rune(r)]
+// 	}
+
+// 	return m
+// }
+
+func SafeFrequency(s string) {
+
+	//fmt.Printf("\n Inside SafeFrequency")
+
+	for _, r := range s {
+		result, ok := freq.Load(r)
+		if ok {
+			freq.Store(r, result+1)
+		} else {
+			freq.Store(r, 1)
+		}
+	}
+}
+
+func ConcurrentFrequency(words []string) FreqMap {
+
+	
+	for _, word := range words {
+		go SafeFrequency(word)
+	}
+
+    time.Sleep(time.Second)
+	fmt.Printf("\n Inside ConcurrentFrequency")
+
+	// for key, value := range freq.internal {
+	// 	fmt.Printf("\n key : %c value : %d", key, value)
+	// }
+
+    
+	return freq.internal
+}
